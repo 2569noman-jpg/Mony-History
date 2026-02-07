@@ -231,6 +231,9 @@ const TRANSLATIONS = {
     i_owe: "I Owe (Debt)",
     they_owe: "They Owe (Credit)",
     person_name: "Person Name",
+    amount: "Amount",
+    note: "Note",
+    date: "Date",
     total_amount: "Total Amount",
     repayments: "Repayment History",
     add_debt: "Add Debt/Loan",
@@ -343,6 +346,9 @@ const TRANSLATIONS = {
     i_owe: "আমি দেব (দেনা)",
     they_owe: "আমি পাব (পাওনা)",
     person_name: "ব্যক্তির নাম",
+    amount: "পরিমাণ",
+    note: "নোট",
+    date: "তারিখ",
     total_amount: "মোট পরিমাণ",
     repayments: "পরিশোধের ইতিহাস",
     add_debt: "নতুন ধার যোগ করুন",
@@ -360,12 +366,13 @@ const TRANSLATIONS = {
   };
 
 // Memoized Transaction Item for performance
-const TransactionItem = React.memo(({ tx, lang, formatAmount, onClick, onDelete }: { 
+const TransactionItem = React.memo(({ tx, lang, formatAmount, onClick, onDelete, isMounted }: { 
   tx: Transaction, 
   lang: string, 
   formatAmount: (a: number | string, s?: boolean) => string,
   onClick: (tx: Transaction) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  isMounted: boolean
 }) => {
   return (
     <div 
@@ -395,7 +402,7 @@ const TransactionItem = React.memo(({ tx, lang, formatAmount, onClick, onDelete 
             {tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount, true)}
           </p>
           <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-            {new Date(tx.date).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' })}
+            {isMounted ? new Date(tx.date).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' }) : ''}
           </p>
         </div>
         <button 
@@ -442,13 +449,31 @@ export default function Home() {
     amount: "",
     type: 'owe' as 'owe' | 'lent',
     note: "",
-    date: new Date().toISOString().slice(0, 10)
+    date: ""
   });
-  const [repaymentForm, setRepaymentForm] = useState({
-    amount: "",
-    note: "",
-    date: new Date().toISOString().slice(0, 10)
+
+  useEffect(() => {
+    if (mounted) {
+      setDebtForm(prev => ({
+        ...prev,
+        date: new Date().toISOString().slice(0, 10)
+      }));
+    }
+  }, [mounted]);
+  const [repaymentForm, setRepaymentForm] = useState({ 
+    amount: "", 
+    note: "", 
+    date: "" 
   });
+
+  useEffect(() => {
+    if (mounted) {
+      setRepaymentForm(prev => ({
+        ...prev,
+        date: new Date().toISOString().slice(0, 10)
+      }));
+    }
+  }, [mounted]);
 
   // 2. Helper functions that don't depend on sync logic
   const t = TRANSLATIONS[lang];
@@ -999,8 +1024,15 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("All");
   const [filterAccount, setFilterAccount] = useState("All");
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  
+  useEffect(() => {
+    if (mounted) {
+      setSelectedMonth(new Date().getMonth());
+      setSelectedYear(new Date().getFullYear());
+    }
+  }, [mounted]);
   const [historySearch, setHistorySearch] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
   const itemsPerPage = 20;
@@ -1736,7 +1768,7 @@ export default function Home() {
           return {
             ...d,
             repayments: newRepayments,
-            status: totalRepaid >= d.amount ? 'settled' : 'pending'
+            status: (totalRepaid >= d.amount ? 'settled' : 'pending') as 'settled' | 'pending'
           };
         }
         return d;
@@ -1755,7 +1787,7 @@ export default function Home() {
   // Render logic
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-safe" suppressHydrationWarning>
+      <div className="min-h-screen bg-background flex items-center justify-center p-safe">
         <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     );
@@ -2382,6 +2414,7 @@ export default function Home() {
                             setSelectedTx(tx);
                             setIsDetailModalOpen(true);
                           }}
+                          isMounted={mounted}
                         />
                       ))}
                     </div>
@@ -3151,6 +3184,7 @@ export default function Home() {
                     setIsDetailModalOpen(true);
                   }}
                   onDelete={handleDeleteTransaction}
+                  isMounted={mounted}
                 />
               ))
             )}
